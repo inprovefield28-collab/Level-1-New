@@ -185,13 +185,106 @@ elif st.session_state.step == 'quiz':
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# C. 結果顯示頁
+# --- 3. 狀態管理與介面 ---
+# ... (中間 quiz 的部分不變) ...
+
+# C. 結果顯示頁 (重新加入並優化複製功能)
 elif st.session_state.step == 'result':
-    st.markdown(f"<h2 style='text-align:center;'>🏆 挑戰完成！</h2>", unsafe_allow_html=True)
-    score = sum(1 for item in st.session_state.results if item['is_correct'])
-    total = len(st.session_state.results)
-    st.markdown(f"<h3 style='text-align:center; color:{COLOR_MAIN};'>{st.session_state.user_name} 的得分：{score * 10} 分</h3>", unsafe_allow_html=True)
+    # 大卡片容器
+    st.markdown(f"""
+    <div style="background-color: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 10px solid {COLOR_MAIN}; max-width: 600px; margin: 20px auto;">
+        <h2 style='text-align:center;'>🏆 挑戰完成！</h2>
+    """, unsafe_allow_html=True)
     
-    if st.button("再次挑戰 (重新隨機抽題)"):
+    score_count = sum(1 for item in st.session_state.results if item['is_correct'])
+    total_count = len(st.session_state.results)
+    final_score = score_count * 10
+    
+    st.markdown(f"<h3 style='text-align:center; color:{COLOR_MAIN};'>{st.session_state.user_name} 的得分：{final_score} 分</h3>", unsafe_allow_html=True)
+
+    # --- 建立複製用的文字報告 ---
+    wrong_txt = ""
+    for i, item in enumerate(st.session_state.results):
+        if not item['is_correct']:
+            # 從 source 判斷是 Main 還是 Phonics
+            source_info = item.get('source', '未知範圍')
+            wrong_txt += f"Q{i+1} ({source_info}): {item['question']}\\n   ❌ 您選: {item['user_choice']}\\n   ✅ 正確: {item['correct_answer']}\\n\\n"
+    
+    # 如果全對
+    if not wrong_txt:
+        wrong_txt = "🎉 太棒了！全對！"
+
+    # 組裝完整的報告內容
+    report_text = f"【{APP_TITLE}】\\n姓名：{st.session_state.user_name}\\n成績：{final_score} 分\\n\\n--- 錯題記錄 ---\\n{wrong_txt}"
+
+    # --- JavaScript 一鍵複製按鈕 ---
+    html_copy_button = f"""
+        <button id="copyBtn" style="background-color:{COLOR_MAIN}; color:white; border:none; padding:15px; font-size:20px; font-weight:bold; border-radius:15px; width:100%; cursor:pointer; margin-top: 20px; transition: background 0.3s;">
+            按我複製成績給老師
+        </button>
+        <script>
+            document.getElementById('copyBtn').onclick = function() {{
+                const text = "{report_text}";
+                // 處理換行符號
+                const cleanText = text.replace(/\\\\n/g, '\\n');
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {{
+                    navigator.clipboard.writeText(cleanText).then(function() {{
+                        document.getElementById('copyBtn').innerText = '✅ 複製成功！';
+                        document.getElementById('copyBtn').style.backgroundColor = '#10B981'; // 變綠色
+                        setTimeout(function() {{ 
+                            document.getElementById('copyBtn').innerText = '按我複製成績給老師'; 
+                            document.getElementById('copyBtn').style.backgroundColor = '{COLOR_MAIN}';
+                        }}, 2000);
+                    }}).catch(function(err) {{
+                        // 失敗時的備案
+                        fallbackCopyTextToClipboard(cleanText);
+                    }});
+                }} else {{
+                    // 不支援此 API 時的備案
+                    fallbackCopyTextToClipboard(cleanText);
+                }}
+            }};
+
+            function fallbackCopyTextToClipboard(text) {{
+                var textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";  //避免滾動
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {{
+                    document.execCommand('copy');
+                    document.getElementById('copyBtn').innerText = '✅ 複製成功 (備案)！';
+                    setTimeout(function() {{ document.getElementById('copyBtn').innerText = '按我複製成績給老師'; }}, 2000);
+                }} catch (err) {{
+                    document.getElementById('copyBtn').innerText = '❌ 複製失敗，請手動截圖';
+                    console.error('Fallback: Oops, unable to copy', err);
+                }}
+                document.body.removeChild(textArea);
+            }}
+        </script>
+    """
+    
+    # 插入複製按鈕
+    st.components.v1.html(html_copy_button, height=100)
+    
+    st.write("---")
+    
+    # 在頁面上也顯示錯題 (供同學現場訂正)
+    has_wrong = False
+    for i, item in enumerate(st.session_state.results):
+        if not item['is_correct']:
+            has_wrong = True
+            st.error(f"**Q{i+1}: {item['question']}**\n\n❌ 您選: {item['user_choice']}  \n✅ 正確: {item['correct_answer']}")
+            
+    if not has_wrong:
+        st.balloons()
+        st.success("太厲害了！全部答對！")
+
+    # 再玩一次按鈕
+    if st.button("再玩一次 (重新隨機抽題)", key="restart_btn"):
         st.session_state.step = 'start'
         st.rerun()
+        
+    st.markdown('</div>', unsafe_allow_html=True)
