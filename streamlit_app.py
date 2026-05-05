@@ -7,8 +7,9 @@ import random
 # ==========================================
 # 老師修改區
 # ==========================================
-APP_TITLE = "線上聽力測驗 Level 4"
-INTRO_BOX_TEXT = """• 小學五年級單字、句型"""
+APP_TITLE = "線上聽力測驗 Level 1"
+INTRO_BOX_TEXT = """• 小學二年級單字、句型
+• 自然發音 Level 1"""
 
 COLOR_MAIN = "#8B5CF6"   # 主色
 COLOR_LIGHT = "#F5F3FF"  # 說明框背景
